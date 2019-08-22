@@ -9,3 +9,5 @@ build
 .classpath
 zookeeper
 bin
+.vscode
+*.log

@@ -28,12 +28,13 @@ dependencies {
   testImplementation 'junit:junit:4.12'
 
   // ZooKeeper.
-  implementation 'org.apache.zookeeper:zookeeper:3.4.14'
+  compile 'org.apache.zookeeper:zookeeper:3.4.14'
 
   // Log4J.
-  implementation 'org.slf4j:slf4j-log4j12:1.7.25'
-  implementation 'org.slf4j:slf4j-api:1.7.25'
-  implementation 'log4j:log4j:1.2.17'
+  compile 'org.slf4j:slf4j-api:1.7.25'
+  compile 'org.apache.logging.log4j:log4j-core:2.12.1'
+  compile 'org.apache.logging.log4j:log4j-1.2-api:2.12.1'
+  compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.12.1'
 
 }
 
@@ -48,10 +49,11 @@ run {
 
 jar {
   manifest {
-    attributes(
-      'Class-Path': configurations.compile.collect { it.getName() }.join(' '),
-      'Main-Class': 'br.edu.ufabc.minitrello.App'
-    )
+    attributes 'Main-Class': 'br.edu.ufabc.minitrello.App'
+  }
+
+  from {
+    configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
   }
 }
 
