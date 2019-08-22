@@ -1,8 +1,7 @@
-package br.edu.ufabc.minitrello.commands;
+package br.edu.ufabc.minitrello.command;
 
 import java.util.Map;
 import br.edu.ufabc.minitrello.App;
-import br.edu.ufabc.minitrello.Command;
 
 public class CommandExit implements Command.Call {
 
