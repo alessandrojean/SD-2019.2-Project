@@ -33,6 +33,10 @@ application {
   mainClassName = 'br.edu.ufabc.minitrello.App'
 }
 
+run {
+  standardInput = System.in
+}
+
 jar {
   manifest {
     attributes(
@@ -40,4 +44,10 @@ jar {
       'Main-Class': 'br.edu.ufabc.minitrello.App'
     )
   }
+}
+
+task runJar(type: JavaExec, dependsOn: ['jar']) {
+  standardInput = System.in
+  main = "-jar"
+  args jar.archivePath
 }

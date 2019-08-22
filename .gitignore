@@ -6,4 +6,6 @@ build
 
 .settings
 .project
+.classpath
 zookeeper
+bin
