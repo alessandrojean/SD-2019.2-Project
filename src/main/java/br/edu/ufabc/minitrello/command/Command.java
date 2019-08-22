@@ -1,4 +1,4 @@
-package br.edu.ufabc.minitrello;
+package br.edu.ufabc.minitrello.command;
 
 import java.util.List;
 import java.util.Map;
@@ -56,6 +56,10 @@ public class Command {
   
   public void setCallable(Call callable) {
     this.callable = callable;
+  }
+
+  public int getArgSize() {
+    return argumentNames.size();
   }
 
   @Override

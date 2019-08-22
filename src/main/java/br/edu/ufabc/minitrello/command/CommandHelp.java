@@ -1,9 +1,8 @@
-package br.edu.ufabc.minitrello.commands;
+package br.edu.ufabc.minitrello.command;
 
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import br.edu.ufabc.minitrello.Command;
 
 public class CommandHelp implements Command.Call {
 

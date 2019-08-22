@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -14,7 +15,7 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.data.Stat;
-import br.edu.ufabc.minitrello.commands.*;
+import br.edu.ufabc.minitrello.command.*;
 
 public class App implements Watcher {
 
@@ -27,6 +28,8 @@ public class App implements Watcher {
     COMMANDS = new ArrayList<>();
     COMMANDS.add(new Command("help", "Imprime a ajuda.", List.of(), new CommandHelp(COMMANDS)));
     COMMANDS.add(new Command("exit", "Finaliza a execução.", List.of(), new CommandExit()));
+    COMMANDS.add(new Command("new-task", "Cria uma nova tarefa.", List.of("task"), new CommandNewTask()));
+    COMMANDS.add(new Command("list", "Lista todas as tarefas.", List.of(), new CommandList()));
   }
 
   public static ZooKeeper ZOOKEEPER;
@@ -36,6 +39,7 @@ public class App implements Watcher {
     setupNode();
     runTitle();
     runPrompt();
+    closeZooKeeper();
   }
 
   private static void startZooKeeper() {
@@ -49,14 +53,19 @@ public class App implements Watcher {
 
   private static void setupNode() {
     try {
-      Stat s = ZOOKEEPER.exists("/minitrello", false);
-      if (s == null) {
-        ZOOKEEPER.create("/minitrello", new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-      }
+      createNode("/minitrello");
+      createNode("/minitrello/tasks");
     } catch (KeeperException | InterruptedException e) {
-      System.err.println("[ERRO] Não foi possível criar /minitrello.");
+      System.err.println("[ERRO] Não foi possível criar os znodes.");
       closeZooKeeper();
       System.exit(0);
+    }
+  }
+
+  private static void createNode(String root) throws KeeperException, InterruptedException {
+    Stat s = ZOOKEEPER.exists(root, false);
+    if (s == null) {
+      ZOOKEEPER.create(root, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
   }
 
@@ -73,7 +82,7 @@ public class App implements Watcher {
     System.out.print("\nMiniTrello> ");
 
     while ((command = reader.readLine()) != null) {
-      evaluate(command);
+      evaluate(command.trim());
       System.out.print("\nMiniTrello> ");
     }
   }
@@ -84,17 +93,44 @@ public class App implements Watcher {
       return;
     }
 
+    String commandWithoutArgs = command.indexOf(" ") != -1
+        ? command.substring(0, command.indexOf(" "))
+        : command;
+
     Optional<Command> optCmd = COMMANDS.stream()
-        .filter(c -> c.getKey().equals(command.substring(1)))
+        .filter(c -> c.getKey().equals(commandWithoutArgs.substring(1)))
         .findFirst();
 
     if (optCmd.isEmpty()) {
-      System.err.println("[ERRO] O comando '" + command + "' não existe.");
+      System.err.println("[ERRO] O comando '" + commandWithoutArgs + "' não existe.");
       return;
     }
 
     Command cmd = optCmd.get();
-    cmd.getCallable().run(null);
+
+    if (cmd.getArgSize() > 0 && command.indexOf(" ") == -1) {
+      System.err.println("[ERRO] Nenhum argumento foi providenciado.");
+      return;
+    }
+
+    String args = cmd.getArgSize() > 0 
+        ? command.substring(command.indexOf(" ") + 1)
+        : "";
+    Map<String, Object> argMap = null;
+
+    try {
+      Evaluator eval = new Evaluator(args, cmd.getArgumentNames());
+      argMap = eval.scanArguments();
+    } catch (Exception e) {
+      System.err.println("[ERRO] " + e.getMessage());
+      return;
+    }
+
+    // Injeta o ZooKeeper nos argumentos.
+    argMap.put("ZK", ZOOKEEPER);
+    argMap.put("ROOT", "/minitrello");
+
+    cmd.getCallable().run(argMap);
   }
   
   public static void closeZooKeeper() {
