@@ -35,7 +35,6 @@ public class CommandWorkOn implements Command.Call {
       System.out.println("A tarefa existe, tentando adquirir os direitos.");
       String pathName = zk.create(task + "/lock-",
           new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
-      System.out.println("Lock criado: " + pathName);
 
       new WorkOn(task, pathName, zk).execute();
     } catch (KeeperException | InterruptedException e) {
