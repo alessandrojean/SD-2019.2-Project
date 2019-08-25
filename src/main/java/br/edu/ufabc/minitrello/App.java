@@ -33,7 +33,7 @@ public class App {
     COMMANDS.add(new Command("new-task", "Cria uma nova tarefa.", List.of("task"), new CommandNewTask()));
     COMMANDS.add(new Command("list", "Lista todas as tarefas.", List.of(), new CommandList()));
     COMMANDS.add(new Command("work-on", "Começa a trabalhar em uma tarefa, sujeito a bloqueio.", List.of("id"), new CommandWorkOn()));
-    COMMANDS.add(new Command("review", "Começa um processo de revisão diário.", List.of("message"), new CommandReview()));
+    COMMANDS.add(new Command("review", "Começa um processo de revisão diário.", List.of("message"), true, new CommandReview()));
     COMMANDS.add(new Command("enter-review", "Se junta a uma review em andamento, sujeito a bloqueio.", List.of(), new CommandEnterReview()));
   }
 
@@ -197,6 +197,11 @@ public class App {
 
     if (cmd.getArgSize() > 0 && command.indexOf(" ") == -1) {
       System.err.println("[ERRO] Nenhum argumento foi providenciado.");
+      return;
+    }
+
+    if (cmd.isLeaderOnly() && !amILeader) {
+      System.err.println("[ERRO] Este comando é limitado somente ao líder.");
       return;
     }
 
