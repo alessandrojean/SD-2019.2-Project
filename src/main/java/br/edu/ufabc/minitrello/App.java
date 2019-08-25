@@ -31,6 +31,7 @@ public class App {
     COMMANDS.add(new Command("help", "Imprime a ajuda.", List.of(), new CommandHelp(COMMANDS)));
     COMMANDS.add(new Command("exit", "Finaliza a execução.", List.of(), new CommandExit()));
     COMMANDS.add(new Command("new-task", "Cria uma nova tarefa.", List.of("task"), new CommandNewTask()));
+    COMMANDS.add(new Command("delete-task", "Deleta uma tarefa.", List.of("id"), new CommandDeleteTask()));
     COMMANDS.add(new Command("list", "Lista todas as tarefas.", List.of(), new CommandList()));
     COMMANDS.add(new Command("work-on", "Começa a trabalhar em uma tarefa, sujeito a bloqueio.", List.of("id"), new CommandWorkOn()));
     COMMANDS.add(new Command("review", "Começa um processo de revisão diário.", List.of("message"), true, new CommandReview()));
