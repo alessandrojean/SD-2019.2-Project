@@ -28,7 +28,7 @@ public class Review {
   public Review(String root, ZooKeeper zooKeeper) {
     this.root = root;
     this.zooKeeper = zooKeeper;
-    this.currentUser = CommandUtils.getUser();
+    this.currentUser = CommandUtils.getUser(true);
     this.watcher = event -> {
       synchronized (mutex) {
         mutex.notify();
@@ -52,7 +52,7 @@ public class Review {
     System.out.println("\n[ REVISÃO DIÁRIA ]\n");
     System.out.println(messageStr);
 
-    System.out.println("\nQuando estiver de acordo, digite [Enter].");
+    System.out.print("\nQuando estiver de acordo, digite [Enter].");
     Scanner sc = new Scanner(System.in);
     sc.nextLine();
 

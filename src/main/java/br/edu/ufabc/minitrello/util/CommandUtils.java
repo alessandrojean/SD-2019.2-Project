@@ -17,14 +17,20 @@ public abstract class CommandUtils {
     return str.substring(str.length() - 10, str.length());
   }
 
+  public static String substringBeforeLast(String str, String d) {
+    if (!str.contains(d)) return str;
+
+    return str.substring(0, str.lastIndexOf(d) - 1);
+  }
+
   public static int getQueueNumber(String str) {
     return Integer.parseInt(substringAfterFirstDigit(str));
   }
 
-  public static String getUser() {
+  public static String getUser(boolean withTime) {
     try {
-      return InetAddress.getLocalHost().getCanonicalHostName().toString()
-        + "-" + System.currentTimeMillis();
+      String user = InetAddress.getLocalHost().getCanonicalHostName().toString();
+      return user + (withTime ? "-" + System.currentTimeMillis() : "");
     } catch (UnknownHostException e) {
       return String.valueOf(System.currentTimeMillis());
     }
