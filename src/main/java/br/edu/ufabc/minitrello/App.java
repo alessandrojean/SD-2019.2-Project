@@ -31,6 +31,8 @@ public class App implements Watcher {
     COMMANDS.add(new Command("new-task", "Cria uma nova tarefa.", List.of("task"), new CommandNewTask()));
     COMMANDS.add(new Command("list", "Lista todas as tarefas.", List.of(), new CommandList()));
     COMMANDS.add(new Command("work-on", "Começa a trabalhar em uma tarefa, sujeito a bloqueio.", List.of("id"), new CommandWorkOn()));
+    COMMANDS.add(new Command("create-review", "Começa uma review, sujeito a bloqueio.", List.of("id"), new CommandCreateReview()));
+    COMMANDS.add(new Command("review", "Se junta a uma review, sujeito a bloqueio.", List.of("id"), new CommandReview()));
   }
 
   public static ZooKeeper ZOOKEEPER;

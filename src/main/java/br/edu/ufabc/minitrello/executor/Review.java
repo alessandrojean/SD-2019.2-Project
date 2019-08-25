@@ -1,5 +1,7 @@
 package br.edu.ufabc.minitrello.executor;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.List;
 import org.apache.zookeeper.KeeperException;
@@ -9,6 +11,8 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.data.Stat;
 import static br.edu.ufabc.minitrello.util.CommandUtils.getQueueNumber;
+import org.apache.zookeeper.ZooDefs.Ids;
+import org.apache.zookeeper.CreateMode;
 
 /**
  * Cada tarefa só pode ter uma pessoa trabalhando nela por vez.
@@ -36,15 +40,29 @@ public class Review {
     final Object barrier = new Object();
     synchronized (barrier) {
       while (true) {
-        // novo integrante
-        //  entra na review
-        //   faz algo
+        try {
+          // entra na barrier
+          String name = new String(InetAddress.getLocalHost().getCanonicalHostName().toString());
+          zooKeeper.create(root + pathName + name, new byte[0], Ids.OPEN_ACL_UNSAFE,
+                  CreateMode.EPHEMERAL_SEQUENTIAL);
+          
+          // TODO  faz algo
+          wait(60000);
 
-
-        // sai da review
-        //  if(era o ultimo)
-        //    acaba a review e deleta o seu znode
+          //    acaba a review e se for o último deleta o seu znode
+          zooKeeper.delete(root + pathName + name, 0);
+          List<String> list = zooKeeper.getChildren(root, true);
+          if(list.size()>0){
+            return;
+          }else{
+            zooKeeper.delete(root + "/review-", 0);
+          }
+          
+          
+        } catch (UnknownHostException e) {
+            System.out.println(e.toString());
+        }        
+      }
     }
   }
-
 }
