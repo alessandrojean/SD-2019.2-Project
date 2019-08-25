@@ -16,13 +16,20 @@ public class Command {
   private String key;
   private String description;
   private List<String> argumentNames;
+  private boolean leaderOnly;
   private Call callable;
 
-  public Command(String key, String description, 
+  public Command(String key, String description,
       List<String> argumentNames, Call callable) {
+    this(key, description, argumentNames, false, callable);
+  }
+
+  public Command(String key, String description, 
+      List<String> argumentNames, boolean leaderOnly, Call callable) {
     this.key = key;
     this.description = description;
     this.argumentNames = argumentNames;
+    this.leaderOnly = leaderOnly;
     this.callable = callable;
   }
 
@@ -50,6 +57,14 @@ public class Command {
     this.argumentNames = argumentNames;
   }
 
+  public boolean isLeaderOnly() {
+    return leaderOnly;
+  }
+
+  public void setLeaderOnly(boolean leaderOnly) {
+    this.leaderOnly = leaderOnly;
+  }
+
   public Call getCallable() {
     return callable;
   }
@@ -67,8 +82,9 @@ public class Command {
     String args = argumentNames.stream()
         .map(x -> "<" + x + ">")
         .collect(Collectors.joining(" "));
+    String leaderMark = leaderOnly ? "[LÍDER] " : "";
 
-    return String.format(":%s %s\n  %s", key, args, description);        
+    return String.format(":%s %s\n  %s%s", key, args, leaderMark, description);        
   }
 
 }
