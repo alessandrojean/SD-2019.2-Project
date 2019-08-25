@@ -29,7 +29,7 @@ public class CommandWorkOn implements Command.Call {
 
       if (st == null) {
         System.err.println("[ERRO] A tarefa especificada não existe.");
-        return;
+        return; 
       }
 
       System.out.println("A tarefa existe, tentando adquirir os direitos.");
