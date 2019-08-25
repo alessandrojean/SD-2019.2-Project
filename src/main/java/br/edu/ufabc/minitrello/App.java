@@ -9,15 +9,15 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.data.Stat;
 import br.edu.ufabc.minitrello.command.*;
 
-public class App implements Watcher {
+public class App {
 
   private static final String HOST = "localhost";
   private static final int SESSION_TIMEOUT = 3000;
@@ -31,11 +31,24 @@ public class App implements Watcher {
     COMMANDS.add(new Command("new-task", "Cria uma nova tarefa.", List.of("task"), new CommandNewTask()));
     COMMANDS.add(new Command("list", "Lista todas as tarefas.", List.of(), new CommandList()));
     COMMANDS.add(new Command("work-on", "Começa a trabalhar em uma tarefa, sujeito a bloqueio.", List.of("id"), new CommandWorkOn()));
-    COMMANDS.add(new Command("create-review", "Começa uma review, sujeito a bloqueio.", List.of("id"), new CommandCreateReview()));
-    COMMANDS.add(new Command("review", "Se junta a uma review, sujeito a bloqueio.", List.of("id"), new CommandReview()));
+    COMMANDS.add(new Command("review", "Começa um processo de revisão diário.", List.of("message"), new CommandReview()));
+    COMMANDS.add(new Command("enter-review", "Se junta a uma review em andamento, sujeito a bloqueio.", List.of(), new CommandEnterReview()));
   }
 
+  private static final List<String> SAFE_KEYS = List.of("help", "exit", "enter-review");
+
   public static ZooKeeper ZOOKEEPER;
+  public static boolean isInReview = false;
+
+  private static Watcher WATCHER = event -> {
+    if (event.getState() == KeeperState.Disconnected) {
+      System.out.println("\nA aplicação foi desconectada do servidor, encerrando.");
+      closeZooKeeper();
+      System.exit(0);
+    } else if (event.getType() == EventType.NodeCreated) {
+      isInReview = true;
+    }
+  };
 
   public static void main(String[] args) throws IOException {
     startZooKeeper();
@@ -47,7 +60,7 @@ public class App implements Watcher {
 
   private static void startZooKeeper() {
     try {
-      ZOOKEEPER = new ZooKeeper(HOST, SESSION_TIMEOUT, new App());
+      ZOOKEEPER = new ZooKeeper(HOST, SESSION_TIMEOUT, WATCHER);
     } catch (IOException e) {
       System.err.println("[ERRO] Não foi possível iniciar o ZooKeeper.");
       System.exit(-1);
@@ -58,6 +71,8 @@ public class App implements Watcher {
     try {
       createNode("/minitrello");
       createNode("/minitrello/tasks");
+      createNode("/minitrello/reviewers");
+      watchNode("/minitrello/review");
     } catch (KeeperException | InterruptedException e) {
       System.err.println("[ERRO] Não foi possível criar os znodes.");
       closeZooKeeper();
@@ -65,10 +80,19 @@ public class App implements Watcher {
     }
   }
 
-  private static void createNode(String root) throws KeeperException, InterruptedException {
+  private static void createNode(String root)
+      throws KeeperException, InterruptedException {
     Stat s = ZOOKEEPER.exists(root, false);
     if (s == null) {
       ZOOKEEPER.create(root, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+    }
+  }
+
+  private static void watchNode(String root)
+      throws KeeperException, InterruptedException {
+    Stat s = ZOOKEEPER.exists(root, true);
+    if (s != null) {
+      isInReview = true;
     }
   }
 
@@ -80,13 +104,16 @@ public class App implements Watcher {
   private static void runPrompt() throws IOException {
     InputStreamReader input = new InputStreamReader(System.in);
     BufferedReader reader = new BufferedReader(input);
+    String status = (isInReview) ? " (R)" : "";
     String command = "";
 
-    System.out.print("\nMiniTrello> ");
+    System.out.printf("%nMiniTrello%s> ", status);
 
     while ((command = reader.readLine()) != null) {
+      status = (isInReview) ? " (R)" : "";
+
       evaluate(command.trim());
-      System.out.print("\nMiniTrello> ");
+      System.out.printf("%nMiniTrello%s> ", status);
     }
   }
 
@@ -110,6 +137,14 @@ public class App implements Watcher {
     }
 
     Command cmd = optCmd.get();
+    boolean isSafe = SAFE_KEYS.contains(cmd.getKey());
+
+    if (isInReview && !isSafe) {
+      System.out.println("[AVISO] Um processo de revisão está em andamento.");
+      System.out.println("[AVISO] Você não poderá usar novos comandos até revisar.");
+      System.out.println("[AVISO] Utilize o comando :enter-review para revisar.");
+      return;
+    }
 
     if (cmd.getArgSize() > 0 && command.indexOf(" ") == -1) {
       System.err.println("[ERRO] Nenhum argumento foi providenciado.");
@@ -141,15 +176,6 @@ public class App implements Watcher {
       ZOOKEEPER.close();
     } catch (InterruptedException e) {
       System.err.println("[ERRO] Não foi possível fechar o ZooKeeper.");
-    }
-  }
-
-  @Override
-  public void process(WatchedEvent event) {
-    if (event.getState() == KeeperState.Disconnected) {
-      System.out.println("\nA aplicação foi desconectada do servidor, encerrando.");
-      closeZooKeeper();
-      System.exit(0);
     }
   }
 

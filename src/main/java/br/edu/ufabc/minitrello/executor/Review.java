@@ -1,68 +1,105 @@
 package br.edu.ufabc.minitrello.executor;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.Collections;
 import java.util.List;
+import java.util.Scanner;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.Watcher.Event.EventType;
-import org.apache.zookeeper.data.Stat;
-import static br.edu.ufabc.minitrello.util.CommandUtils.getQueueNumber;
+import br.edu.ufabc.minitrello.App;
+import br.edu.ufabc.minitrello.util.CommandUtils;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.CreateMode;
 
 /**
- * Cada tarefa só pode ter uma pessoa trabalhando nela por vez.
- * Desta maneira, o WorkOn funciona como um Lock, gerando uma
- * espécie de lista de espera onde cada cliente deve esperar
- * sua vez para poder ser liberado para trabalhar nela.
- * 
- * Enquanto o cliente fica esperando, seu terminal da aplicação
- * é travado, impedindo que ele possa digitar novos comandos
- * enquanto não sair da lista de espera.
+ * Quando uma revisão é convocada, no mínimo x pessoas devem estar no 
+ * processo realizando a mesma. Caso alguma termine sua revisão, 
+ * precisará esperar que as outras também terminem. Com isto,
+ * utiliza-se uma Barrier para gerenciar este procedimento.
  */
 public class Review {
 
   private String root;
-  private String pathName;
   private ZooKeeper zooKeeper;
+  private String currentUser;
+  private final Object mutex = new Object();
 
-  public Review(String root, String pathName, ZooKeeper zooKeeper) {
+  private Watcher watcher;
+
+  public Review(String root, ZooKeeper zooKeeper) {
     this.root = root;
-    this.pathName = pathName;
     this.zooKeeper = zooKeeper;
+    this.currentUser = CommandUtils.getUser();
+    this.watcher = event -> {
+      synchronized (mutex) {
+        mutex.notify();
+      }
+    };
   }
 
+  @SuppressWarnings("resource")
   public void execute() throws KeeperException, InterruptedException {
-    final Object barrier = new Object();
-    synchronized (barrier) {
-      while (true) {
-        try {
-          // entra na barrier
-          String name = new String(InetAddress.getLocalHost().getCanonicalHostName().toString());
-          zooKeeper.create(root + pathName + name, new byte[0], Ids.OPEN_ACL_UNSAFE,
-                  CreateMode.EPHEMERAL_SEQUENTIAL);
-          
-          // TODO  faz algo
-          wait(60000);
+    if (zooKeeper.exists(root + "/reviewers/" + currentUser, false) != null) {
+      System.err.println("[ERRO] Você já está revisando em alguma outra instância.");
+      return;
+    }
 
-          //    acaba a review e se for o último deleta o seu znode
-          zooKeeper.delete(root + pathName + name, 0);
-          List<String> list = zooKeeper.getChildren(root, true);
-          if(list.size()>0){
-            return;
-          }else{
-            zooKeeper.delete(root + "/review-", 0);
-          }
-          
-          
-        } catch (UnknownHostException e) {
-            System.out.println(e.toString());
-        }        
+    // Entra na barreira.
+    enter();
+
+    byte[] message = zooKeeper.getData(root + "/review", false, null);
+    String messageStr = new String(message);
+
+    System.out.println("\n[ REVISÃO DIÁRIA ]\n");
+    System.out.println(messageStr);
+
+    System.out.println("\nQuando estiver de acordo, digite [Enter].");
+    Scanner sc = new Scanner(System.in);
+    sc.nextLine();
+
+    // Sai da barreira.
+    leave();
+  }
+
+  private void enter() throws KeeperException, InterruptedException {
+    zooKeeper.create(root + "/reviewers/" + currentUser, new byte[0],
+        Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+
+    synchronized (mutex) {
+      while (true) {
+        List<String> list = zooKeeper.getChildren(root + "/reviewers", watcher);
+        if (list.size() < 2) {
+          mutex.wait();
+        } else {
+          return;
+        }
       }
     }
   }
+
+  private void leave() throws KeeperException, InterruptedException {
+    zooKeeper.delete(root + "/reviewers/" + currentUser, 0);
+
+    synchronized (mutex) {
+      while (true) {
+        List<String> list = zooKeeper.getChildren(root + "/reviewers", watcher);
+        if (list.size() > 0) {
+          mutex.wait();
+        } else {
+          try {
+            // Deleta a revisão se existir e for o último.
+            if (zooKeeper.exists(root + "/review", false) != null) {
+              zooKeeper.delete(root + "/review", 0);
+            }
+          } catch (KeeperException e) {
+            // Não faz nada.
+          }
+
+          App.isInReview = false;
+
+          return;
+        }
+      }
+    }
+  }
+
 }

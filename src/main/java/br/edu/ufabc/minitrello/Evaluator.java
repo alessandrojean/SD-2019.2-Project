@@ -52,13 +52,15 @@ public class Evaluator {
   }
 
   private void string() throws Exception {
-    while (peek() != '"' && !isAtEnd()) advance();
+    while ((peek() != '"' || peekPrevious() == '\\') && !isAtEnd())
+      advance();
 
-    if (isAtEnd()) throw new Exception("String não terminada.");
+    if (isAtEnd())
+      throw new Exception("String não terminada.");
 
     advance();
     String value = currentString.substring(start + 1, current - 1);
-    addArgument(value);
+    addArgument(value.replace("\\n", "\n").replace("\\\"", "\""));
   }
 
   private char advance() {
@@ -74,6 +76,10 @@ public class Evaluator {
   private char peekNext() {
     if (current + 1 >= currentString.length()) return '\0';
     return currentString.charAt(current + 1);
+  }
+
+  private char peekPrevious() {
+    return currentString.charAt(current - 1);
   }
 
   private boolean isDigit(char c) {
